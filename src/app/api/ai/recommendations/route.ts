@@ -4,6 +4,13 @@ import { prisma } from '@/lib/db'
 
 export async function POST(request: NextRequest) {
   try {
+    if (!openai) {
+      return NextResponse.json(
+        { error: 'OpenAI API key not configured' },
+        { status: 500 }
+      )
+    }
+
     const { query, preferences, budget, ecosystem } = await request.json()
 
     if (!query) {

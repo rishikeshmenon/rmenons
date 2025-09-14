@@ -6,6 +6,13 @@ import { stripe } from '@/lib/stripe'
 
 export async function POST(request: NextRequest) {
   try {
+    if (!stripe) {
+      return NextResponse.json(
+        { error: 'Stripe API key not configured' },
+        { status: 500 }
+      )
+    }
+
     const session = await getServerSession(authOptions)
     const { currency = 'CAD' } = await request.json()
 

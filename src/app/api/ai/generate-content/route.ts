@@ -3,6 +3,13 @@ import { openai } from '@/lib/openai'
 
 export async function POST(request: NextRequest) {
   try {
+    if (!openai) {
+      return NextResponse.json(
+        { error: 'OpenAI API key not configured' },
+        { status: 500 }
+      )
+    }
+
     const { type, topic, context } = await request.json()
 
     if (!type || !topic) {
