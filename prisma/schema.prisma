@@ -1,0 +1,286 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  role      Role     @default(VISITOR)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  carts      Cart[]
+  orders     Order[]
+  bookings   Booking[]
+  proposals  Proposal[]
+
+  @@map("users")
+}
+
+model Category {
+  id       String  @id @default(cuid())
+  name     String
+  parentId String? @map("parent_id")
+  parent   Category? @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryHierarchy")
+
+  // Relations
+  products Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id               String   @id @default(cuid())
+  sku              String   @unique
+  title            String
+  brand            String
+  categoryId       String   @map("category_id")
+  shortDesc        String   @map("short_desc")
+  longDesc         String   @map("long_desc")
+  priceCad         Int      @map("price_cad") // Price in cents
+  priceUsd         Int      @map("price_usd") // Price in cents
+  stock            Int      @default(0)
+  images           Json
+  protocol         String?
+  power            String?
+  roomTags         Json @map("room_tags")
+  beginnerFriendly Boolean  @default(false) @map("beginner_friendly")
+  worksGoogle      Boolean  @default(false) @map("works_google")
+  worksAlexa       Boolean  @default(false) @map("works_alexa")
+  worksHa          Boolean  @default(false) @map("works_ha")
+  worksMatter      Boolean  @default(false) @map("works_matter")
+  worksZigbee      Boolean  @default(false) @map("works_zigbee")
+  worksZwave       Boolean  @default(false) @map("works_zwave")
+  worksThread      Boolean  @default(false) @map("works_thread")
+  requiresBridge   Json @map("requires_bridge")
+  published        Boolean  @default(false)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  category   Category     @relation(fields: [categoryId], references: [id])
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+  kitProducts KitProduct[]
+
+  @@map("products")
+}
+
+model Kit {
+  id              String      @id @default(cuid())
+  slug            String      @unique
+  title           String
+  ecosystem       Ecosystem
+  summary         String
+  includes        Json        // JSONB for flexible kit contents
+  priceCad        Int         @map("price_cad") // Price in cents
+  priceUsd        Int         @map("price_usd") // Price in cents
+  skillLevel      SkillLevel  @map("skill_level")
+  installTime     Int         @map("install_time_minutes") // Minutes
+  images          Json
+  faq             Json?       // JSONB for FAQ data
+  published       Boolean     @default(false)
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  // Relations
+  kitProducts KitProduct[]
+
+  @@map("kits")
+}
+
+model KitProduct {
+  id        String  @id @default(cuid())
+  kitId     String  @map("kit_id")
+  productId String  @map("product_id")
+  qty       Int
+
+  // Relations
+  kit     Kit     @relation(fields: [kitId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([kitId, productId])
+  @@map("kit_products")
+}
+
+model Cart {
+  id        String   @id @default(cuid())
+  userId    String?  @map("user_id")
+  currency  String   @default("CAD")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user      User?      @relation(fields: [userId], references: [id])
+  cartItems CartItem[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        String  @id @default(cuid())
+  cartId    String  @map("cart_id")
+  productId String  @map("product_id")
+  qty       Int
+  unitPrice Int     @map("unit_price") // Price in cents
+
+  // Relations
+  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("cart_items")
+}
+
+model Order {
+  id            String      @id @default(cuid())
+  userId        String      @map("user_id")
+  totalCents    Int         @map("total_cents")
+  currency      String      @default("CAD")
+  status        OrderStatus @default(PENDING)
+  stripePi      String?     @map("stripe_pi")
+  shippingAddr  Json        @map("shipping_addr")
+  billingAddr   Json        @map("billing_addr")
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  // Relations
+  user       User        @relation(fields: [userId], references: [id])
+  orderItems OrderItem[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String @id @default(cuid())
+  orderId   String @map("order_id")
+  productId String @map("product_id")
+  qty       Int
+  unitPrice Int    @map("unit_price") // Price in cents
+
+  // Relations
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("order_items")
+}
+
+model Booking {
+  id                String        @id @default(cuid())
+  userId            String        @map("user_id")
+  slotStart         DateTime      @map("slot_start")
+  slotEnd           DateTime      @map("slot_end")
+  status            BookingStatus @default(SCHEDULED)
+  providerId        String?       @map("provider_id")
+  calendlyEventId   String?       @map("calendly_event_id")
+  depositPaymentIntent String?    @map("deposit_payment_intent")
+  createdAt         DateTime      @default(now()) @map("created_at")
+
+  // Relations
+  user            User            @relation(fields: [userId], references: [id])
+  intakeResponses IntakeResponse[]
+  proposals       Proposal[]
+
+  @@map("bookings")
+}
+
+model IntakeResponse {
+  id        String @id @default(cuid())
+  bookingId String @map("booking_id")
+  answers   Json   // JSONB for flexible intake data
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@map("intake_responses")
+}
+
+model Proposal {
+  id            String          @id @default(cuid())
+  userId        String          @map("user_id")
+  bookingId     String          @map("booking_id")
+  status        ProposalStatus  @default(DRAFT)
+  bom           Json            // JSONB for bill of materials
+  laborHoursEst Float?          @map("labor_hours_est")
+  priceRange    Json            @map("price_range") // JSONB for price range data
+  pdfUrl        String?         @map("pdf_url")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+
+  // Relations
+  user    User    @relation(fields: [userId], references: [id])
+  booking Booking @relation(fields: [bookingId], references: [id])
+
+  @@map("proposals")
+}
+
+model Content {
+  id        String      @id @default(cuid())
+  slug      String      @unique
+  type      ContentType
+  title     String
+  body      Json        // Portable text or JSON content
+  seo       Json?       // JSONB for SEO metadata
+  published Boolean     @default(false)
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  @@map("content")
+}
+
+// Enums
+enum Role {
+  VISITOR
+  CUSTOMER
+  ADMIN
+  CONSULTANT
+}
+
+enum Ecosystem {
+  GOOGLE
+  ALEXA
+}
+
+enum SkillLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum BookingStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+enum ProposalStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+}
+
+enum ContentType {
+  GUIDE
+  BLOG
+  FAQ
+}
